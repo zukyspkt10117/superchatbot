@@ -15,7 +15,6 @@ ngrok config add-authtoken 2vduGmrFswcvVJ9trfCw54ByndA_3AdQh9Lp4KprvU66CE9cN
 ```
 
 - Bước 1: Tạo một tunnel với ngrok
-Tạo một tunnel với ngrok
 Chạy ngrok để chuyển tiếp lưu lượng HTTP từ Internet đến máy local của bạn.
 Giả sử Flask API của bạn đang chạy trên cổng 5000, bạn mở terminal và chạy:
 ```bash {cmd}
