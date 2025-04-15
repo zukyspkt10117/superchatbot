@@ -1,11 +1,10 @@
-from flask import Flask, request
 import requests
 import get_gas_price
+from flask import Flask, request
+from sqlite3_utils import *
+from configuration import BOT_TOKEN, URL
 
 app = Flask(__name__)
-
-BOT_TOKEN = '7313717335:AAEmTTF3lhsrow2bupSJB1ZdYXo6bgD2y9k'  # Thay bằng token bot của bạn
-# chat_id = '7043128381'
 
 # Dữ liệu danh sách gas và location
 gas_list = [
@@ -24,13 +23,31 @@ location_list = [
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.get_json()
+    message = data.get("message", {})
+    text = message.get("text", "")
+    chat_id = message.get("chat", {}).get("id")
 
-    if 'message' in data:
-        chat_id = data['message']['chat']['id']
-        text = data['message'].get('text', '')
+    user = get_user_by_chat_id(chat_id)
+
+    if not user:
+        # Chưa tồn tại => tạo mới user
+        create_user(chat_id)
+        send_message(chat_id, "Chào bạn! Vui lòng nhập tên của bạn để tiếp tục.")
+    elif user['state'] == 'Init':
+        # Đang chờ nhập tên
+        if text.startswith("/"):
+            send_message(chat_id, "Vui lòng nhập tên của bạn trước khi dùng các lệnh khác.")
+        else:
+            update_user_name(chat_id, text.strip())
+            update_user_state(chat_id, "Working")
+            send_message(chat_id, f"Cảm ơn {text.strip()}! Bạn đã đăng ký thành công.")
+    else:
+        # Trạng thái đã đăng ký
+        if text == '/start':
+            send_message(chat_id, f"Chào: {user['name']}, Chào mừng đến với Chatbox của Zuky\nGõ /help để xem tất cả các lệnh được hỗ trợ.")
 
         # Kiểm tra xem có lệnh /price hay không
-        if text == '/qprice':
+        elif text == '/qprice':
             # Gọi hàm get_gas_price để lấy dữ liệu
             result = get_gas_price.get_gas_price_st1()
             full_text = ""
@@ -55,10 +72,9 @@ def webhook():
             send_location_list(chat_id)
         
         elif text == '/help':
-            send_message(chat_id, "Gõ /qprice để xem giá xăng ở Gustaf Dalénsgatan 21\nGõ /price10 để xem top giá xăng ở các thấp nhất \n" \
+            send_message(chat_id, "Gõ /qprice để xem giá xăng ở Gustaf Dalénsgatan 21\nGõ /price10 để xem top 10 station có giá xăng thấp nhất \n" \
                         "Gõ /location để xem danh sách các địa điểm\nGõ /gaslist để xem danh sách các trạm xăng\nGõ /help để xem tất cả các lệnh được hỗ trợ")
-        elif text == '/start':
-            send_message(chat_id, "Chào bạn! Chào mừng đến với Chatbox của Zuky\nGõ /help để xem tất cả các lệnh được hỗ trợ.")
+
         elif text.startswith('/'):  # Xử lý các lệnh con (subcommands) như /1, /2
             handle_subcommand(chat_id, text)
         else:
